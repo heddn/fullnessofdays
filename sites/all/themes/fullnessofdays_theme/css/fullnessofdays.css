@@ -7,6 +7,9 @@
   h1#site-name {
     font-size: 3.5em;
   }
+  p {
+    font-size: 18px;
+  }
 }
 
 #site-slogan {
@@ -15,4 +18,3 @@
 div.service-links li {
   display: inline;
 }
-
