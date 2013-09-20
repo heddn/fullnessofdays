@@ -1,20 +1,118 @@
-@media all and (min-width: 901px) {
-  div#site-slogan {
-    padding: 20px 0 0;
-    margin: 0 0 0 15px;
-    font-size: 1.5em;
-  }
-  h1#site-name {
-    font-size: 3.5em;
-  }
-  p {
-    font-size: 18px;
-  }
+/** Defaults **/
+body {
+  font-family: 'Balthazar';
+}
+h1, h2, h3, h4, h5, h6, div {
+  font-family: 'Patrick Hand SC';
 }
 
-#site-slogan {
-  font-size: 1em;
+/** Banner **/
+header#header {
+  margin-top: -25px;
 }
+div.region-header {
+  border: none;
+  float: none;
+}
+div.region-header div.block {
+  display: inline-block;
+  margin: 25px 0 0;
+  width: 100%;
+}
+div.region-header div.content {
+  float: none;
+  text-align: center;
+}
+div#banner-wrapper {
+  clear: both;
+}
+h1#banner-name {
+  margin: 0;
+  font-size: 3.5em;
+}
+div#banner-slogan {
+  padding: 0;
+  margin: 0 0 10px;
+  font-size: 1.5em;
+}
+p {
+  font-size: 18px;
+}
+div#main-menu {
+  display: block;
+}
+
+/** Photo handling **/
+
+/* By default, we tilt all our images -7 degrees */
+div.node-photo {
+  -webkit-transform: rotate(-7deg);
+  -moz-transform: rotate(-7deg);
+}
+/* Rotate all even images 7 degrees */
+div.node-photo:nth-child(even) {
+  -webkit-transform: rotate(7deg);
+  -moz-transform: rotate(7deg);
+}
+/* Don't rotate every third image, but offset its position */
+div.node-photo:nth-child(3n) {
+  -webkit-transform: none;
+  -moz-transform: none;
+  position: relative;
+  top: -5px;
+}
+/* Rotate every fifth image by 5 degrees and offset it */
+div.node-photo:nth-child(5n) {
+  -webkit-transform: rotate(5deg);
+  -moz-transform: rotate(5deg);
+  position: relative;
+  right: 5px;
+}
+/* Keep default rotate for every eighth, but offset it */
+div.node-photo:nth-child(8n) {
+  position: relative;
+  top: 8px;
+  right: 5px;
+}
+/* Keep default rotate for every eleventh, but offset it */
+div.node-photo:nth-child(11n) {
+  position: relative;
+  top: 3px;
+  left: -5px;
+}
+div.node-photo {
+  font-size: large;
+  background: #FFF;
+  color: black;
+  display: inline-block;
+  margin: 0 auto;
+  -webkit-transition: -webkit-transform .15s linear;
+  -webkit-box-shadow: 0 3px 6px rgba(0,0,0,.25);
+  -moz-box-shadow: 0 3px 6px rgba(0,0,0,.25);
+}
+div.node-photo div.field-type-image {
+ font-size: 0
+}
+div.node-photo img {
+  float: left;
+  padding: 10px;
+}
+div.node-photo.medium-photo {
+  margin: 20px;
+  display: inline-block;
+}
+div.node-photo.left {
+  float: left;
+}
+div.node-photo.right {
+  float: right;
+}
+div.node-photo div.field-name-title {
+  text-align: center;
+}
+
+/** Service links **/
+
 div.service-links li {
   display: inline;
 }
