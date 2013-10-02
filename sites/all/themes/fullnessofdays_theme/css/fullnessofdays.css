@@ -108,6 +108,9 @@ div.node-photo.right {
 div.node-photo div.field-name-title {
   text-align: center;
 }
+div.view-frontpage div.field-name-title {
+  clear: both;
+}
 
 /** Service links **/
 div.service-links li {
