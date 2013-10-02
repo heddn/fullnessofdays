@@ -43,7 +43,6 @@ div#main-menu {
 }
 
 /** Photo handling **/
-
 /* By default, we tilt all our images -7 degrees */
 div.node-photo {
   -webkit-transform: rotate(-7deg);
@@ -112,7 +111,10 @@ div.node-photo div.field-name-title {
 }
 
 /** Service links **/
-
 div.service-links li {
   display: inline;
 }
+li.forward_link {
+float: right;
+}
+
