@@ -94,7 +94,7 @@ div.node-photo img {
   float: left;
   padding: 10px;
 }
-div.node-photo.medium-photo {
+div.panel-pane div.node-photo.medium-photo {
   margin: 25px;
   display: inline-block;
 }
