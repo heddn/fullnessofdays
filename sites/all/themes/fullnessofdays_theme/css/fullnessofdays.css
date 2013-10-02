@@ -63,8 +63,8 @@ div.node-photo:nth-child(even) {
 }
 /* Don't rotate every third image, but offset its position */
 div.node-photo:nth-child(3n) {
-  -webkit-transform: none;
-  -moz-transform: none;
+  -webkit-transform: rotate(-3deg);
+  -moz-transform: rotate(-3deg);
   position: relative;
   top: -5px;
 }
@@ -94,7 +94,8 @@ div.node-photo img {
   float: left;
   padding: 10px;
 }
-div.panel-pane div.node-photo.medium-photo {
+div.panel-pane div.node-photo.medium-photo,
+div.node-photo.medium-photo {
   margin: 25px;
   display: inline-block;
 }
