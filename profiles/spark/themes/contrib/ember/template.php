@@ -20,7 +20,7 @@ function ember_html_head_alter(&$head_elements) {
     '#tag' => 'meta',
     '#attributes' => array(
       'name' => 'viewport',
-      'content' => 'width=device-width,initial-scale=1'),
+      'content' => 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=0'),
   );
 }
 
@@ -29,11 +29,20 @@ function ember_html_head_alter(&$head_elements) {
  */
 function ember_preprocess_html(&$vars) {
   // Add conditional CSS for IE8 and below.
-  drupal_add_css(path_to_theme() . '/css/ie/ie.css', array('group' => CSS_THEME, 'browsers' => array('IE' => 'lte IE 8', '!IE' => FALSE), 'weight' => 999, 'preprocess' => FALSE));
+  drupal_add_css(path_to_theme() . '/styles/ie/ie.css', array('group' => CSS_THEME, 'browsers' => array('IE' => 'lte IE 8', '!IE' => FALSE), 'weight' => 999, 'preprocess' => FALSE));
   // Add conditional CSS for IE7 and below.
-  drupal_add_css(path_to_theme() . '/css/ie/ie7.css', array('group' => CSS_THEME, 'browsers' => array('IE' => 'lte IE 7', '!IE' => FALSE), 'weight' => 999, 'preprocess' => FALSE));
+  drupal_add_css(path_to_theme() . '/styles/ie/ie7.css', array('group' => CSS_THEME, 'browsers' => array('IE' => 'lte IE 7', '!IE' => FALSE), 'weight' => 999, 'preprocess' => FALSE));
   // Add conditional CSS for IE6.
-  drupal_add_css(path_to_theme() . '/css/ie/ie6.css', array('group' => CSS_THEME, 'browsers' => array('IE' => 'lte IE 6', '!IE' => FALSE), 'weight' => 999, 'preprocess' => FALSE));
+  drupal_add_css(path_to_theme() . '/styles/ie/ie6.css', array('group' => CSS_THEME, 'browsers' => array('IE' => 'lte IE 6', '!IE' => FALSE), 'weight' => 999, 'preprocess' => FALSE));
+}
+
+/**
+ * Override or insert variables into the page template.
+ */
+function ember_process_page(&$vars) {
+  if (theme_get_setting('display_breadcrumbs') == 1) {
+    unset($vars['breadcrumb']);
+  }
 }
 
 /**
@@ -103,13 +112,13 @@ function ember_tablesort_indicator($variables) {
 function ember_css_alter(&$css) {
   // Use ember's vertical tabs style instead of the default one.
   if (isset($css['misc/vertical-tabs.css'])) {
-    $css['misc/vertical-tabs.css']['data'] = drupal_get_path('theme', 'ember') . '/css/vertical-tabs.css';
+    $css['misc/vertical-tabs.css']['data'] = drupal_get_path('theme', 'ember') . '/styles/vertical-tabs.css';
   }
   if (isset($css['misc/vertical-tabs-rtl.css'])) {
-    $css['misc/vertical-tabs-rtl.css']['data'] = drupal_get_path('theme', 'ember') . '/css/vertical-tabs-rtl.css';
+    $css['misc/vertical-tabs-rtl.css']['data'] = drupal_get_path('theme', 'ember') . '/styles/vertical-tabs-rtl.css';
   }
   // Use ember's jQuery UI theme style instead of the default one.
   if (isset($css['misc/ui/jquery.ui.theme.css'])) {
-    $css['misc/ui/jquery.ui.theme.css']['data'] = drupal_get_path('theme', 'ember') . '/css/jquery.ui.theme.css';
+    $css['misc/ui/jquery.ui.theme.css']['data'] = drupal_get_path('theme', 'ember') . '/styles/jquery.ui.theme.css';
   }
 }

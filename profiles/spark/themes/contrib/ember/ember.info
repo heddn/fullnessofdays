@@ -5,8 +5,8 @@ version = VERSION
 core = 7.x
 
 ; Stylesheets
-stylesheets[screen][] = css/normalize.css
-stylesheets[screen][] = css/style.css
+;stylesheets[screen][] = styles/normalize.css
+stylesheets[screen][] = styles/style.css
 
 ; Settings
 settings[shortcut_module_link] = 1
@@ -20,15 +20,9 @@ regions[page_bottom] = Page bottom
 regions[sidebar_first] = First sidebar
 regions_hidden[] = sidebar_first
 
-; Information added by drupal.org packaging script on 2011-12-05
-version = "7.10"
-project = "drupal"
-datestamp = "1323125439"
-
-
-; Information added by drupal.org packaging script on 2013-01-25
-version = "7.x-1.0-alpha5"
+; Information added by drupal.org packaging script on 2013-09-20
+version = "7.x-2.0-alpha1"
 core = "7.x"
 project = "ember"
-datestamp = "1359095802"
+datestamp = "1379705625"
 
