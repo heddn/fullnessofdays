@@ -115,6 +115,14 @@ A: Quick Edit module indeed enables contextual links on node pages as well, to
    hook_node_view_alter() yourself, or by implementing
    hook_module_implements_alter() to prevent quickedit_node_view_alter() from
    being executed.
+Q: Can I let my custom code trigger in-place editing of an entity?
+A: Absolutely! You can do something like this;
+     Drupal.quickedit.collections.entities.findWhere({
+       entityID: 'node/1',
+       entityInstanceID: '0'
+     }).set('state', 'launching');
+   Try it by copy/pasting and executing that code at /node/1 in your browser's
+   console and you'll see that in-place editing starts immediately!
 
 
 Drupal 8 to Drupal 7 backporting considerations

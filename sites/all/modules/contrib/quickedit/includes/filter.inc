@@ -86,6 +86,8 @@ function quickedit_filter_info_alter(&$info) {
     'smart_paging_filter_autop' => FILTER_TYPE_TRANSFORM_IRREVERSIBLE,
     // http://drupal.org/project/spamspan
     'spamspan' => FILTER_TYPE_TRANSFORM_IRREVERSIBLE,
+    // http://drupal.org/project/transliteration
+    'transliteration' => FILTER_TYPE_TRANSFORM_IRREVERSIBLE,
     // http://drupal.org/project/typogrify
     'typogrify' => FILTER_TYPE_TRANSFORM_IRREVERSIBLE,
     // http://drupal.org/project/wysiwyg_filter
