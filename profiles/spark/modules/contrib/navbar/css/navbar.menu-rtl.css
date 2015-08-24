@@ -1,22 +1,11 @@
-
 /**
- * @file navbar.menu.css
- *
- * RTL styling for navbar.menu.css
+ * @file navbar.menu-rtl.css
  */
-.navbar .vertical .handle + a {
+#navbar-administration .navbar-tray-vertical .navbar-handle + .navbar-menu-item {
   margin-left: 3em;
   margin-right: 0;
 }
-
-/**
- * Handle.
- */
-.navbar .icon.handle {
+#navbar-administration .navbar-icon.navbar-handle {
   left: 0;
   right: auto;
-}
-.navbar .icon.handle:before {
-  left: auto;
-  right: 0;
 }

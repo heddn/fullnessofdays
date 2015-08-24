@@ -99,16 +99,21 @@ function drush_imageinfo_cache_image_generate($field_name = NULL, $style_name = 
       '!style_names' => implode(", ", array_keys($image_styles)),
     )));
     foreach ($uris as $fid => $uri) {
-      $return[$field_name][$fid] = imageinfo_cache_create_image_styles($image_styles, $uri, FALSE);
+      $return[$field_name][$fid] = imageinfo_cache_create_image_styles($uri, array(), $image_styles);
       if (!empty($return[$field_name][$fid])) {
         drush_log(dt('!uri derivatives generated.', array(
           '!uri' => $uri,
         )), 'success');
       }
-      else {
+      elseif (isset($return[$field_name][$fid])) {
         drush_log(dt('!uri already generated.', array(
           '!uri' => $uri,
         )), 'success');
+      }
+      else {
+        drush_log(dt('Error generating image.', array(
+          '!uri' => $uri,
+        )), 'error');
       }
     }
   }
@@ -141,7 +146,7 @@ function imageinfo_cache_get_all_images_in_field($image_fields, $field_name) {
     if (!empty($results[$field_values['entity_type']])) {
       foreach ($results[$field_values['entity_type']] as $key => $value) {
         if (!empty($value->extraFields->{$field_name . '_fid'}) && is_numeric($value->extraFields->{$field_name . '_fid'})) {
-            $fids[$key] = $value->extraFields->{$field_name . '_fid'};
+          $fids[$key] = $value->extraFields->{$field_name . '_fid'};
         }
       }
     }
@@ -183,7 +188,7 @@ if (!class_exists('ApachesolrAttachmentsEntityFieldQuery') && class_exists('Enti
      * @param SelectQuery $select_query
      *   A SelectQuery which has entity_type, entity_id, revision_id and bundle
      *   fields added.
-     * @param $id_key
+     * @param string $id_key
      *   Which field's values to use as the returned array keys.
      *
      * @return

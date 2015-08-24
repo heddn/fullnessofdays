@@ -8,7 +8,7 @@
 /**
  * Get all fields that contain an image.
  *
- * @return
+ * @return array
  *   An array of imagefields.
  */
 function imageinfo_cache_get_fields_with_images() {
@@ -20,12 +20,8 @@ function imageinfo_cache_get_fields_with_images() {
     foreach ($instances as $entity_instances) {
       foreach ($entity_instances as $bundle_fields) {
         foreach ($bundle_fields as $field_values) {
-          // Core image module.
-          if (!empty($field_values['widget']['type']) && $field_values['widget']['type'] == 'image_image') {
-            $image_fields[$field_values['field_name']]['#field_info'][] = $field_values;
-          }
-          // Media module.
-          elseif (!empty($field_values['widget']['settings']['allowed_types']['image'])) {
+          $image_type = imageinfo_cache_detect_image_widget($field_values['widget']);
+          if (!empty($image_type)) {
             $image_fields[$field_values['field_name']]['#field_info'][] = $field_values;
           }
         }
@@ -38,17 +34,20 @@ function imageinfo_cache_get_fields_with_images() {
 /**
  * Get all fields that contain an image and what styles are used in it.
  *
- * @param $run_alter
+ * @param bool $run_alter
  *   (optional) Run hook alter inside of imageinfo_cache_get_styles_in_use().
  *   Default is TRUE.
- * @return
+ * @param bool $use_cache
+ *   (optional) Use the database cache. Default is TRUE.
+ *
+ * @return array
  *   An array of imagefields and styles.
  */
-function imageinfo_cache_get_image_fields($run_alter = TRUE) {
+function imageinfo_cache_get_image_fields($run_alter = TRUE, $use_cache = TRUE) {
   $image_fields = imageinfo_cache_get_fields_with_images();
-  foreach ($image_fields as  $field_name => $values) {
+  foreach ($image_fields as $field_name => $values) {
     foreach ($values['#field_info'] as $field_values) {
-      $image_fields[$field_name] += imageinfo_cache_get_styles_in_use($field_values, $run_alter);
+      $image_fields[$field_name] += imageinfo_cache_get_styles_in_use($field_values, $run_alter, $use_cache);
     }
   }
   return $image_fields;
@@ -57,14 +56,17 @@ function imageinfo_cache_get_image_fields($run_alter = TRUE) {
 /**
  * Generates all in use presets given a field instance and a file uri.
  *
- * @param $instance_field
+ * @param array $instance_field
  *   Field array from field_info_instances().
- * @param $run_alter
+ * @param bool $run_alter
  *   (optional) Run hook alter. Default is TRUE.
- * @return
+ * @param bool $use_cache
+ *   (optional) Use the database cache. Default is TRUE.
+ *
+ * @return array
  *   An array of what styles are used in this field.
  */
-function imageinfo_cache_get_styles_in_use($instance_field, $run_alter = TRUE) {
+function imageinfo_cache_get_styles_in_use($instance_field, $run_alter = TRUE, $use_cache = TRUE) {
   $return = array();
   // Do nothing if the image module does not exist.
   if (!module_exists('image')) {
@@ -118,9 +120,9 @@ function imageinfo_cache_get_styles_in_use($instance_field, $run_alter = TRUE) {
   }
 
   // Get the presets used in views.
-  $image_styles_in_views = imageinfo_cache_get_image_styles_in_views($instance_field['field_name']);
+  $image_styles_in_views = imageinfo_cache_get_image_styles_in_views($instance_field['field_name'], FALSE, $use_cache);
   foreach ($image_styles_in_views as $image_style_name) {
-    if (!empty($image_styles[$image_style_name])) {
+    if (is_string($image_style_name) && !empty($image_styles[$image_style_name])) {
       $styles[$image_style_name] = $image_styles[$image_style_name];
     }
   }
@@ -144,9 +146,10 @@ function imageinfo_cache_get_styles_in_use($instance_field, $run_alter = TRUE) {
 /**
  * Given a field instance will return images styles used in file_entity.
  *
- * @param $instance_field
+ * @param array $instance_field
  *   Field array from field_info_instances().
- * @return
+ *
+ * @return array
  *   An array of what styles are used in this field.
  */
 function imageinfo_cache_get_image_styles_in_file_entity($instance_field) {
@@ -167,13 +170,18 @@ function imageinfo_cache_get_image_styles_in_file_entity($instance_field) {
 /**
  * Given a field instance will return images styles used in file_entity.
  *
- * @param $view_mode
+ * @param string $view_mode
  *   Name of the file_entity view.
- * @return
+ *
+ * @return array
  *   An array of what styles are used in this field.
  */
 function imageinfo_cache_get_presets_in_file_view_mode($view_mode) {
-  $formatters = &drupal_static(__FUNCTION__);
+  if (!module_exists('file_entity')) {
+    return array();
+  }
+
+  $formatters = &drupal_static(__FUNCTION__ . ':formatters');
   $file_type = 'image';
   if (!isset($formatters)) {
     $formatters = file_info_formatter_types();
@@ -185,7 +193,10 @@ function imageinfo_cache_get_presets_in_file_view_mode($view_mode) {
   }
 
   $image_style_names = array();
-  $current_displays = file_displays_load($file_type, $view_mode, TRUE);
+  $current_displays = &drupal_static(__FUNCTION__ . ':displays:' . $file_type . ':' . $view_mode);
+  if (!isset($current_displays)) {
+    $current_displays = file_displays_load($file_type, $view_mode, TRUE);
+  }
   foreach ($current_displays as $name => $display) {
     $display = (array) $display;
     if (!empty($display['status']) && !empty($display['settings'])) {
@@ -205,12 +216,18 @@ function imageinfo_cache_get_presets_in_file_view_mode($view_mode) {
 /**
  * Given a field name, will return image styles used in views for that field.
  *
- * @param $field_name
+ * @param string $field_name
  *   Name of a field containing images.
- * @return
+ * @param bool $view_links
+ *   (optional) If TRUE return links to the views that use image styles.
+ *   Default is FALSE.
+ * @param bool $use_cache
+ *   (optional) Use the database cache. Default is TRUE.
+ *
+ * @return array
  *   An array image style names.
  */
-function imageinfo_cache_get_image_styles_in_views($field_name) {
+function imageinfo_cache_get_image_styles_in_views($field_name, $view_links = FALSE, $use_cache = TRUE) {
   $image_styles_in_views = &drupal_static(__FUNCTION__);
 
   // Do nothing is the views module is missing.
@@ -220,117 +237,229 @@ function imageinfo_cache_get_image_styles_in_views($field_name) {
 
   // Lookup info.
   if (!isset($image_styles_in_views)) {
-    foreach (views_get_enabled_views() as $view) {
-      foreach ($view->display as $display_id => $display) {
-        // Skip if no fields.
-        if (empty($display->display_options['fields'])) {
-          continue;
-        }
-
-        foreach ($display->display_options['fields'] as $view_field_name => $field_info) {
-          // Skip if field is missing needed info.
-          if (   empty($field_info['settings']['image_style'])
-              && empty($field_info['settings']['file_view_mode'])
-              && empty($field_info['view_mode'])
-                ) {
+    $cache = cache_get('__FUNCTION__');
+    if (!empty($cache->data) && $use_cache) {
+      $image_styles_in_views = $cache->data;
+    }
+    else {
+      foreach (views_get_enabled_views() as $view) {
+        foreach ($view->display as $display) {
+          // Skip if no fields.
+          if (empty($display->display_options['fields'])) {
             continue;
           }
 
-          // Handle rendered fields by looking at relationships.
-          if (strpos($view_field_name, 'rendered') === 0) {
-            if (!empty($display->display_options['relationships'])) {
-              $fields_with_images = imageinfo_cache_get_fields_with_images();
-              $changed = FALSE;
-              foreach ($display->display_options['relationships'] as $values) {
-                if (!empty($values['label']) && !empty($fields_with_images[$values['label']])) {
-                  $view_field_name = $values['label'];
-                  $changed = TRUE;
+          foreach ($display->display_options['fields'] as $view_field_name => $field_info) {
+            // Skip if field is missing needed info.
+            if (   empty($field_info['settings']['image_style'])
+                && empty($field_info['settings']['file_view_mode'])
+                && empty($field_info['view_mode'])
+                  ) {
+              continue;
+            }
+
+            // Handle rendered fields by looking at relationships.
+            if (strpos($view_field_name, 'rendered') === 0) {
+              if (!empty($display->display_options['relationships'])) {
+                $fields_with_images = imageinfo_cache_get_fields_with_images();
+                $changed = FALSE;
+                foreach ($display->display_options['relationships'] as $values) {
+                  if (!empty($values['label']) && !empty($fields_with_images[$values['label']])) {
+                    $view_field_name = $values['label'];
+                    $changed = TRUE;
+                    break;
+                  }
+                }
+                if (empty($changed)) {
                   break;
                 }
               }
-              if (empty($changed)) {
-                break;
+            }
+
+            $added = FALSE;
+            // Core image style.
+            if (!empty($field_info['settings']['image_style'])) {
+              $image_styles_in_views[$view_field_name][] = $field_info['settings']['image_style'];
+              $added = TRUE;
+            }
+            // Newer Lightbox.
+            if (!empty($field_info['settings']['lightbox_style'])) {
+              $image_styles_in_views[$view_field_name][] = $field_info['settings']['lightbox_style'];
+              $added = TRUE;
+            }
+            // Older Lightbox.
+            if (!empty($field_info['type']) && substr_count($field_info['type'], '__') == 3 && strpos($field_info['type'], 'lightbox2__') === 0) {
+              $pieces = explode('__', $field_info['type']);
+
+              $image_styles_in_views[$view_field_name][] = $pieces[2];
+              $image_styles_in_views[$view_field_name][] = $pieces[3];
+              $added = TRUE;
+            }
+            // File entities.
+            if (!empty($field_info['settings']['file_view_mode'])) {
+              $file_view_mode = imageinfo_cache_get_presets_in_file_view_mode($field_info['settings']['file_view_mode']);
+              foreach ($file_view_mode as $style_in_view) {
+                $image_styles_in_views[$view_field_name][] = $style_in_view;
+                $added = TRUE;
+              }
+            }
+            // File entities.
+            if (!empty($field_info['view_mode'])) {
+              $view_mode = imageinfo_cache_get_presets_in_file_view_mode($field_info['view_mode']);
+              foreach ($view_mode as $style_in_view) {
+                $image_styles_in_views[$view_field_name][] = $style_in_view;
+                $added = TRUE;
+              }
+            }
+            if ($added) {
+              if (empty($image_styles_in_views[$view_field_name]['#views'])) {
+                $image_styles_in_views[$view_field_name]['#views'] = l($view->human_name . ' - ' . $display->display_title, 'admin/structure/views/view/' . $view->name . '/edit/' . $display->id);
+              }
+              else {
+                $image_styles_in_views[$view_field_name]['#views'] .= ', ' . l($view->human_name . ' - ' . $display->display_title, 'admin/structure/views/view/' . $view->name . '/edit/' . $display->id);
               }
             }
           }
-
-          // Core image style.
-          if (!empty($field_info['settings']['image_style'])) {
-            $image_styles_in_views[$view_field_name][] = $field_info['settings']['image_style'];
-          }
-          // Newer Lightbox.
-          if (!empty($field_info['settings']['lightbox_style'])) {
-            $image_styles_in_views[$view_field_name][] = $field_info['settings']['lightbox_style'];
-          }
-          // Older Lightbox.
-          if (!empty($field_info['type']) && substr_count($field_info['type'], '__') == 3 && strpos($field_info['type'], 'lightbox2__') === 0) {
-            $pieces = explode('__', $field_info['type']);
-
-            $image_styles_in_views[$view_field_name][] = $pieces[2];
-            $image_styles_in_views[$view_field_name][] = $pieces[3];
-          }
-          // File entities.
-          if (!empty($field_info['settings']['file_view_mode'])) {
-            $file_view_mode = imageinfo_cache_get_presets_in_file_view_mode($field_info['settings']['file_view_mode']);
-            foreach ($file_view_mode as $style_in_view) {
-              $image_styles_in_views[$view_field_name][] = $style_in_view;
-            }
-          }
-          // File entities.
-          if (!empty($field_info['view_mode'])) {
-            $view_mode = imageinfo_cache_get_presets_in_file_view_mode($field_info['view_mode']);
-            foreach ($view_mode as $style_in_view) {
-              $image_styles_in_views[$view_field_name][] = $style_in_view;
-            }
-          }
         }
+      }
+      // Diff the arrays to see if this value is different from the cached value.
+      if (!empty($cache->data)) {
+        $a = imageinfo_cache_array_diff_assoc_recursive($cache->data, $image_styles_in_views);
+        $b = imageinfo_cache_array_diff_assoc_recursive($image_styles_in_views, $cache->data);
+      }
+      if (empty($cache->data) || !empty($a) || !empty($b)) {
+        cache_set('__FUNCTION__', $image_styles_in_views, 'cache', CACHE_TEMPORARY);
       }
     }
   }
 
   // Return list.
-  if (isset($image_styles_in_views[$field_name])) {
-    return array_unique($image_styles_in_views[$field_name]);
+  if ($view_links) {
+    $return = '';
   }
-  return array();
+  else {
+    $return = array();
+  }
+  if (isset($image_styles_in_views[$field_name])) {
+    if (!empty($image_styles_in_views[$field_name]['#views']) && $view_links) {
+      $return = $image_styles_in_views[$field_name]['#views'];
+    }
+    elseif (!$view_links) {
+      $copy = $image_styles_in_views[$field_name];
+      unset($copy['#views']);
+      $return = array_unique($copy);
+    }
+  }
+  return $return;
 }
 
 /**
  * Generates all given presets given a file uri.
  *
- * This is mainly used as a wrapper for httprl.
+ * @param mixed $uri
+ *   String URI from a file object; or array of URIs.
+ * @param array $instance_field
+ *   Field info from field_info_instances().
+ * @param array $styles
+ *   (optional) Styles to use from image_styles().
+ * @param bool $entity_available
+ *   (optional) TRUE if coming from entity save.
  *
- * @param $styles
- *   Styles to use from image_styles().
- * @param $uri
- *   URI from a file object.
- * @param $use_httprl
- *   (optional) Use httprl if available. Default TRUE.
- * @return
+ * @return array
  *   An array of what was done.
  */
-function imageinfo_cache_create_image_styles($styles, $uri, $use_httprl = TRUE) {
+function imageinfo_cache_create_image_styles($uri, $instance_field = array(), $styles = array(), $entity_available = TRUE) {
   $return = array();
-  if (   $use_httprl
-      && module_exists('httprl')
-      && variable_get('imageinfo_cache_use_httprl', IMAGEINFO_CACHE_USE_HTTPRL)
-      && httprl_is_background_callback_capable()
-        ) {
-    // Setup callback options array; call function in the background.
-    $callback_options = array(
-      array(
-        'function' => 'imageinfo_cache_create_image_styles_call',
-      ),
-      $styles, $uri,
-    );
-    // Queue up the request.
-    httprl_queue_background_callback($callback_options);
 
-    // Execute request.
-    $return = httprl_send_request();
+  // Use files array.
+  $files = array();
+  if (is_string($uri)) {
+    $files[] = $uri;
   }
   else {
-    $return = imageinfo_cache_create_image_styles_call($styles, $uri);
+    $files = $uri;
+  }
+
+  if (empty($styles) && !empty($instance_field)) {
+    // Get image styles used by this field.
+    $styles = imageinfo_cache_get_styles_in_use($instance_field);
+  }
+  // Skip styles that need context.
+  if (!$entity_available) {
+    foreach ($styles as $style_name => $style_info) {
+      if (!empty($style_info['#needs_context'])) {
+        unset($styles[$style_name]);
+      }
+    }
+  }
+  // Do nothing if no styles are here for the image.
+  if (empty($styles)) {
+    return $return;
+  }
+
+  foreach ($files as $uri) {
+    foreach ($styles as $style_name => $style_info) {
+      $destination = image_style_path($style_name, $uri);
+
+      // If the file does not exist, create it.
+      if (!file_exists($destination)) {
+        // Don't start generating the image if the derivative already exists or if
+        // generation is in progress in another thread.
+        $lock_name = 'image_style_deliver:' . $style_name . ':' . drupal_hash_base64($uri);
+        $lock_acquired = lock_acquire($lock_name);
+        if ($lock_acquired && image_style_create_derivative($style_info, $uri, $destination)) {
+          lock_release($lock_name);
+          $return[$destination] = $style_name;
+
+          if (variable_get('imageinfo_cache_getimagesize', IMAGEINFO_CACHE_GETIMAGESIZE)) {
+            // Prime get_info cache.
+            image_get_info($destination);
+          }
+        }
+      }
+      else {
+        $return[$destination] = FALSE;
+      }
+    }
+    if (variable_get('imageinfo_cache_getimagesize', IMAGEINFO_CACHE_GETIMAGESIZE)) {
+      // Prime get_info cache.
+      image_get_info($uri);
+    }
   }
   return $return;
+}
+
+/**
+ * Computes the difference of arrays with additional index check recursively.
+ *
+ * @param array $array1
+ *   The array to compare from.
+ * @param array $array2
+ *   An array to compare against.
+ *
+ * @return array
+ *   Returns an array containing all the values from array1 that are not
+ *   present in any of the other arrays.
+ */
+function imageinfo_cache_array_diff_assoc_recursive($array1, $array2) {
+  foreach ($array1 as $key => $value) {
+    if (is_array($value)) {
+      if (!isset($array2[$key])) {
+        $difference[$key] = $value;
+      }
+      elseif (!is_array($array2[$key])) {
+        $difference[$key] = $value;
+      }
+      else {
+        $new_diff = imageinfo_cache_array_diff_assoc_recursive($value, $array2[$key]);
+        if($new_diff != FALSE) {
+          $difference[$key] = $new_diff;
+        }
+      }
+    }
+    elseif (!isset($array2[$key]) || $array2[$key] != $value) {
+      $difference[$key] = $value;
+    }
+  }
+  return !isset($difference) ? 0 : $difference;
 }

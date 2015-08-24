@@ -97,11 +97,13 @@
         // Show available view modes for the selected content.
         // Note: this needs core patch http://drupal.org/node/365241#comment-6314864
         $('#edit-entity', dialogdiv).bind('autocompleteSelect', function(event) {
+          // Remove extra fields in case the user changed his mind and chosed another entity.
+          $('.extra-fields', dialogdiv).remove();
           // Render a select with the view modes of the selected entity.
           var entity = $('#edit-entity', dialogdiv).val();
           entity = entity.split(':');
           var view_modes = dialogdiv.view_modes[entity[0]];
-          $('form', dialogdiv).append('<div class="form-item form-type-select form-item-view-modes" role="application"><label for="edit-view-modes">View modes</label><select id="view-modes" name="view_modes" class="form-select"></select></div>');
+          $('form', dialogdiv).append('<div class="form-item form-type-select form-item-view-modes extra-fields" role="application"><label for="edit-view-modes">View modes</label><select id="view-modes" name="view_modes" class="form-select"></select></div>');
           $('#view-modes').append($('<option>', { value : 'link' }).text('Link to content'));
           $.each(view_modes, function(key, value) {
             $('#view-modes').append($('<option>', { value : 'render:' + key }).text('Embedded view: ' + value));

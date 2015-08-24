@@ -10,13 +10,13 @@ Predis
 ------
 
 This implementation uses the Predis PHP library. It is compatible PHP 5.3
-only, and need Redis >= 2.1.0 for using the WATCH command.
+only.
 
 PhpRedis
 --------
 
 This implementation uses the PhpRedis PHP extention. In order to use it, you
-will need to compile the extension yourself.
+probably will need to compile the extension yourself.
 
 Redis version
 -------------
@@ -26,12 +26,16 @@ WATCH command, it is actually there only since version 2.1.0. If you use
 the it, it will just pass silently and work gracefully, but lock exclusive
 mutex is exposed to race conditions.
 
-Use Redis 2.1.0 or later if you can! I warned you.
+Please use Redis 2.4.0 or later if you can. I won't maintain any bug for
+Redis versions prior to 2.4.0.
+
+If you can't upgrade you Redis server, please use an older version of this
+module (prior to 7.x-2.6).
 
 Notes
 -----
 
-Both backends provide the exact same functionnalities. The major difference is
+Both backends provide the exact same functionalities. The major difference is
 because PhpRedis uses a PHP extension, and not PHP code, it more performant.
 
 Difference is not that visible, it's really a few millisec on my testing box.
@@ -46,8 +50,35 @@ Redis <= 2.2. Using it with older versions is untested, might work but might
 also cause you serious trouble. Any bug report raised using such version will
 be ignored.
 
-Install
-=======
+Getting started
+===============
+
+Quick setup
+-----------
+
+Here is a simple yet working easy way to setup the module.
+This method will Drupal to use Redis for all caches and locks
+and path alias cache replacement.
+
+  $conf['redis_client_interface'] = 'PhpRedis'; // Can be "Predis".
+  $conf['redis_client_host']      = '1.2.3.4';  // Your Redis instance hostname.
+  $conf['lock_inc']               = 'sites/all/modules/redis/redis.lock.inc';
+  $conf['path_inc']               = 'sites/all/modules/redis/redis.path.inc';
+  $conf['cache_backends'][]       = 'sites/all/modules/redis/redis.autoload.inc';
+  $conf['cache_default_class']    = 'Redis_Cache';
+
+See next chapters for more information.
+
+Is there any cache bins that should *never* go into Redis?
+----------------------------------------------------------
+
+TL;DR: No.
+
+Redis has been maturing a lot over time, and will apply different sensible
+settings for different bins; It's today very stable.
+
+Advanced configuration
+======================
 
 Choose the Redis client library to use
 --------------------------------------
@@ -58,7 +89,7 @@ Add into your settings.php file:
 
 You can replace 'PhpRedis' with 'Predis', depending on the library you chose. 
 
-Note that this is optionnal but recommended. If you don't set this variable the
+Note that this is optional but recommended. If you don't set this variable the
 module will proceed to class lookups and attempt to choose the best client
 available, having always a preference for the Predis one.
 
@@ -81,8 +112,44 @@ Usual lock backend override, update you settings.php file as this:
 
   $conf['lock_inc'] = 'sites/all/modules/redis/redis.lock.inc';
 
+Tell Drupal to use the path alias backend
+-----------------------------------------
+
+Usual path backend override, update you settings.php file as this:
+
+  $conf['path_inc'] = 'sites/all/modules/redis/redis.path.inc';
+
+Notice that there is an additional variable for path handling that is set
+per default which will ignore any path that is an admin path, gaining a few
+SQL queries. If you want to be able to set aliases on admin path and restore
+an almost default Drupal core behavior, you should add this line into your
+settings.php file:
+
+  $conf['path_alias_admin_blacklist'] = FALSE;
+
+Drupal 6 and lock backend
+-------------------------
+
+Considering this is a Drupal 7 module only downloading it in Drupal 6 will make
+the module UI telling you this module is unsupported yet you can use the lock
+backend on Drupal 6.
+
+Read your Drupal 6 core documentation and use the redis.lock.inc file as
+lock_inc replacement the same way its being done for Drupal 7 and it should
+work. Note that this is untested by the module maintainer (feedback will be
+greatly appreciated).
+
 Common settings
 ===============
+
+Connect throught a UNIX socket
+------------------------------
+
+All you have to do is specify this line:
+
+  $conf['redis_client_socket'] = '/some/path/redis.sock';
+
+Both drivers support it.
 
 Connect to a remote host
 ------------------------
@@ -134,7 +201,7 @@ that will be the default prefix for all cache bins:
 
   $conf['cache_prefix'] = 'mysite_';
 
-Alternatively, to provide the same functionnality, you can provide the variable
+Alternatively, to provide the same functionality, you can provide the variable
 as an array:
 
   $conf['cache_prefix']['default'] = 'mysite_';
@@ -162,13 +229,113 @@ Here is a complex sample:
   $conf['cache_prefix']['cache_menu'] = 'menumysite_';
 
 Note that if you don't specify the default behavior, the Redis module will
-attempt to use the HTTP_HOST variable in order to provide a multisite safe
-default behavior. Notice that this is not failsafe, in such environment you
-are strongly advised to set at least an explicit default prefix.
+attempt to use the a hash of the database credentials in order to provide a
+multisite safe default behavior. Notice that this is not failsafe. In such
+environments you are strongly advised to set at least an explicit default
+prefix.
 
 Note that this last notice is Redis only specific, because per default Redis
 server will not namespace data, thus sharing an instance for multiple sites
 will create conflicts. This is not true for every contributed backends.
+
+Flush mode
+----------
+
+Redis allows to set a time-to-live at the key level, which frees us from
+handling the garbage collection at clear() calls; Unfortunately Drupal never
+explicitely clears single cached pages or blocks. If you didn't configure the
+"cache_lifetime" core variable, its value is "0" which means that temporary
+items never expire: in this specific case, we need to adopt a different
+behavior than leting Redis handling the TTL by itself; This is why we have
+three different implementations of the flush algorithm you can use:
+
+ * 0: Never flush temporary: leave Redis handling the TTL; This mode is
+   not compatible for the "page" and "block" bins but is the default for
+   all others.
+
+ * 1: Keep a copy of temporary items identifiers in a SET and flush them
+   accordingly to spec (DatabaseCache default backend mimic behavior):
+   this is the default for "page" and "block" bin if you don't change the
+   configuration.
+
+ * 2: Flush everything including permanent or valid items on clear() calls:
+   this behavior mimics the pre-1.0 releases of this module. Use it only
+   if you experience backward compatibility problems on a production
+   environement - at the cost of potential performance issues; All other
+   users should ignore this parameter.
+
+You can configure a default flush mode which will override the sensible
+provided defaults by setting the 'redis_flush_mode' variable.
+
+  // For example this is the safer mode.
+  $conf['redis_flush_mode'] = 1;
+
+But you may also want to change the behavior for only a few bins.
+
+  // This will put mode 0 on "bootstrap" bin.
+  $conf['redis_flush_mode_cache_bootstrap'] = 0;
+
+  // And mode 2 to "page" bin.
+  $conf['redis_flush_mode_cache_page'] = 2;
+
+Note that you must prefix your bins with "cache" as the Drupal 7 bin naming
+convention requires it.
+
+Keep in mind that defaults will provide the best balance between performance
+and safety for most sites; Non advanced users should ever change them.
+
+Default lifetime for permanent items
+------------------------------------
+
+Redis when reaching its maximum memory limit will stop writing data in its
+storage engine: this is a feature that avoid the Redis server crashing when
+there is no memory left on the machine.
+
+As a workaround, Redis can be configured as a LRU cache for both volatile or
+permanent items, which means it can behave like Memcache; Problem is that if
+you use Redis as a permanent storage for other business matters than this
+module you cannot possibly configure it to drop permanent items or you'll
+loose data.
+
+This workaround allows you to explicity set a very long or configured default
+lifetime for CACHE_PERMANENT items (that would normally be permanent) which
+will mark them as being volatile in Redis storage engine: this then allows you
+to configure a LRU behavior for volatile keys without engaging the permenent
+business stuff in a dangerous LRU mechanism; Cache items even if permament will
+be dropped when unused using this.
+
+Per default the TTL for permanent items will set to safe-enough value which is
+one year; No matter how Redis will be configured default configuration or lazy
+admin will inherit from a safe module behavior with zero-conf.
+
+For advanturous people, you can manage the TTL on a per bin basis and change
+the default one:
+
+    // Make CACHE_PERMANENT items being permanent once again
+    // 0 is a special value usable for all bins to explicitely tell the
+    // cache items will not be volatile in Redis.
+    $conf['redis_perm_ttl'] = 0;
+
+    // Make them being volatile with a default lifetime of 1 year.
+    $conf['redis_perm_ttl'] = "1 year";
+
+    // You can override on a per-bin basis;
+    // For example make cached field values live only 3 monthes:
+    $conf['redis_perm_ttl_cache_field'] = "3 months";
+
+    // But you can also put a timestamp in there; In this case the
+    // value must be a STRICTLY TYPED integer:
+    $conf['redis_perm_ttl_cache_field'] = 2592000; // 30 days.
+
+Time interval string will be parsed using DateInterval::createFromDateString
+please refer to its documentation:
+
+    http://www.php.net/manual/en/dateinterval.createfromdatestring.php
+
+Last but not least please be aware that this setting affects the
+CACHE_PERMANENT ONLY; All other use cases (CACHE_TEMPORARY or user set TTL
+on single cache entries) will continue to behave as documented in Drupal core
+cache backend documentation.
 
 Lock backends
 -------------
@@ -178,6 +345,91 @@ be faster than the default SQL based one when using both servers on the same box
 
 Both backends, thanks to the Redis WATCH, MULTI and EXEC commands provides a
 real race condition free mutexes if you use Redis >= 2.1.0.
+
+Queue backend
+-------------
+
+This module provides an experimental queue backend. It is for now implemented
+only using the PhpRedis driver, any attempt to use it using Predis will result
+in runtime errors.
+
+If you want to change the queue driver system wide, set this into your
+setting.php file:
+
+    $conf['queue_default_class'] = 'Redis_Queue';
+    $conf['queue_default_reliable_class'] = 'Redis_Queue';
+
+Note that some queue implementations such as the batch queue are hardcoded
+within Drupal and will always use a database dependent implementation.
+
+If you need to proceed with finer tuning, you can set a per-queue class in
+such way:
+
+    $conf['queue_class_NAME'] = 'Redis_Queue';
+
+Where NAME is the arbitrary module given queue name, used as first parameter
+for the method DrupalQueue::get().
+
+THIS IS STILL VERY EXPERIMENTAL. The queue should work without any problems
+except it does not implement the item lease time correctly, this means that
+items that are too long to process won't be released back and forth but will
+block the thread processing it instead. This is the only side effect I am
+aware of at the current time.
+
+Failover, sharding and partionning
+==================================
+
+Important notice
+----------------
+
+There are numerous support and feature request issues about client sharding,
+failover ability, multi-server connection, ability to read from slave and
+server clustering opened in the issue queue. Note that there is not one
+universally efficient solution for this: most of the solutions require that
+you cannot use the MULTI/EXEC command using more than one key, and that you
+cannot use complex UNION and intersection features anymore.
+
+This module does not implement any kind of client side key hashing or sharding
+and never intended to; We recommend that you read the official Redis
+documentation page about partionning.
+
+The best solution for clustering and sharding today seems to be the proxy
+assisted partionning using tools such as Twemproxy.
+
+Current components state
+------------------------
+
+As of now, provided components are simple enough so they never use WATCH or
+MULTI/EXEC transaction blocks on multiple keys : this means that you can use
+them in an environment doing data sharding/partionning.
+
+Lock
+----
+
+Lock backend works on a single key per lock, it theorically guarantees the
+atomicity of operations therefore is usable in a sharded environement. Note
+that this is still untested as of now. Feedback is welcome.
+
+Path
+----
+
+Path backend does not use on transactions, it is safe to use in a sharded
+environment. Note that this backend uses a single HASH key per language
+and per way (alias to source or source to alias) and therefore won't benefit
+greatly if not at all from being sharded.
+
+Cache
+-----
+
+Cache uses pipelined transactions but does not uses it to guarantee any kind
+of data consistency. If you use a smart sharding proxy it is supposed to work
+transparently without any hickups.
+
+Queue
+-----
+
+Queue is still in development. There might be problems in the long term for
+this component in sharded environments.
 
 Testing
 =======
