@@ -97,8 +97,10 @@ function token_insert_entity_tokens($type, $tokens, array $data = array(), array
         if (isset($entity_titles[$entity_type])) {
           // Embed a rendered entity.
           $entity = entity_load_single($entity_type, $id);
-          $rendered_entity = entity_view($entity_type, array($entity), $view_mode);
-          $replacements[$original] = drupal_render($rendered_entity);
+          if (entity_access('view', $entity_type, $entity)) {
+            $rendered_entity = entity_view($entity_type, array($entity), $view_mode);
+            $replacements[$original] = drupal_render($rendered_entity);
+          }
         }
       }
       elseif (($parts[1] == 'link') && count($parts) == 4) {
@@ -106,9 +108,11 @@ function token_insert_entity_tokens($type, $tokens, array $data = array(), array
         if (isset($entity_titles[$entity_type])) {
           // Link to an entity.
           $entity = entity_load_single($entity_type, $id);
-          $entity_uri = entity_uri($entity_type, $entity);
-          $entity_type_titles = _token_insert_entity_entity_type_titles();
-          $replacements[$original] = l(t($entity->{$entity_type_titles[$entity_type]}), $entity_uri['path']);
+          if (entity_access('view', $entity_type, $entity)) {
+            $entity_uri = entity_uri($entity_type, $entity);
+            $entity_type_titles = _token_insert_entity_entity_type_titles();
+            $replacements[$original] = l(t($entity->{$entity_type_titles[$entity_type]}), $entity_uri['path']);
+          }
         }
       }
     }
