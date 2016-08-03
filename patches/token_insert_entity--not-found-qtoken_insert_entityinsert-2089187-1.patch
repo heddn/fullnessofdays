@@ -1,0 +1,25 @@
+From 1ec9afe797b4ccdc1c5b4023a78bae06f7a6f50a Mon Sep 17 00:00:00 2001
+From: heddn <lucashedding@1463982.no-reply.drupal.org>
+Date: Sat, 14 Sep 2013 16:06:25 -0500
+Subject: Issue #2089187 by heddn: 404 not found ?q=token_insert_entity/insert
+
+---
+ plugins/rendered_entity/rendered_entity.js |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/plugins/rendered_entity/rendered_entity.js b/plugins/rendered_entity/rendered_entity.js
+index 1669656..1cd2edb 100644
+--- a/plugins/rendered_entity/rendered_entity.js
++++ b/plugins/rendered_entity/rendered_entity.js
+@@ -38,7 +38,7 @@
+      */
+     insert_form: function (data, settings, instanceId) {
+       // Location, where to fetch the dialog.
+-      var aurl = Drupal.settings.basePath + 'index.php?q=token_insert_entity/insert';
++      var aurl = Drupal.settings.basePath + 'token_insert_entity/insert';
+       dialogdiv = jQuery('<div id="token-insert-entity-dialog"></div>');
+       // Load the Insert Token form.
+       $.getJSON(aurl, function(data) {
+--
+1.7.10.4
+

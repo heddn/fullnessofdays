@@ -38,7 +38,7 @@
      */
     insert_form: function (data, settings, instanceId) {
       // Location, where to fetch the dialog.
-      var aurl = Drupal.settings.basePath + 'index.php?q=token_insert_entity/insert';
+      var aurl = Drupal.settings.basePath + 'token_insert_entity/insert';
       dialogdiv = jQuery('<div id="token-insert-entity-dialog"></div>');
       // Load the Insert Token form.
       $.getJSON(aurl, function(data) {
